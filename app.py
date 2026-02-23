@@ -14,6 +14,8 @@ def initialize_session():
         st.session_state.messages = []
     if "images" not in st.session_state:
         st.session_state.images = {}
+    if "audio_dream" not in st.session_state:
+        st.session_state.audio_dream = None
 
 
 def display_history():
@@ -84,15 +86,22 @@ def main():
         st.header("Enregistrement audio")
         audio_file = st.audio_input("Enregistre ton rêve")
         if audio_file:
-            with st.spinner("Transcription en cours..."):
-                transcribed_text = transcribe_audio(audio_file)
-            st.success("Transcription terminée !")
-            st.write(transcribed_text)
-            if st.button("Analyser ce rêve"):
-                analyze_dream(transcribed_text)
-                st.rerun()
+            if st.button("Transcrire et analyser"):
+                with st.spinner("Transcription en cours..."):
+                    transcribed = transcribe_audio(audio_file)
+                cleaned = transcribed.strip()
+                if len(cleaned) > 3:
+                    st.session_state.audio_dream = cleaned
+                    st.success(f"Transcrit : {cleaned}")
+                else:
+                    st.error("Rien n'a été capté. Réessaie.")
 
     display_history()
+
+    if st.session_state.audio_dream:
+        dream_to_analyze = st.session_state.audio_dream
+        st.session_state.audio_dream = None
+        analyze_dream(dream_to_analyze)
 
     dream_text = st.chat_input("Décris ton rêve...")
     if dream_text:

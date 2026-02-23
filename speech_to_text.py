@@ -8,8 +8,10 @@ client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 
 def transcribe_audio(audio_file):
+    audio_bytes = audio_file.read()
     transcription = client.audio.transcriptions.create(
-        file=("audio.wav", audio_file.read(), "audio/wav"),
+        file=("audio.webm", audio_bytes),
         model="whisper-large-v3",
+        language="fr",
     )
     return transcription.text
