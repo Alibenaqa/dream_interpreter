@@ -6,72 +6,97 @@ from dream_analyzer import (
 )
 from speech_to_text import transcribe_audio
 from image_generator import generate_dream_image
-from dream_journal import save_dream, load_dreams
+from dream_journal import save_dream
 
 
-def main():
-    st.title("Interprète de Rêves")
+def initialize_session():
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+    if "images" not in st.session_state:
+        st.session_state.images = {}
 
-    st.subheader("Décris ton rêve")
 
-    input_method = st.radio(
-        "Comment veux-tu décrire ton rêve ?",
-        ["Texte", "Audio"]
-    )
+def display_history():
+    for i, message in enumerate(st.session_state.messages):
+        with st.chat_message(message["role"]):
+            if message["role"] == "user":
+                st.write(message["content"])
+            else:
+                st.markdown("**Résumé**")
+                st.write(message["summary"])
+                st.markdown("**Interprétation**")
+                st.write(message["interpretation"])
+                if i in st.session_state.images:
+                    st.markdown("**Illustration**")
+                    st.image(st.session_state.images[i])
 
-    dream_text = ""
 
-    if input_method == "Texte":
-        dream_text = st.text_area("Écris ton rêve ici...")
+def analyze_dream(dream_text):
+    with st.chat_message("user"):
+        st.write(dream_text)
 
-    else:
-        audio_file = st.audio_input("Enregistre ton rêve")
-        if audio_file:
-            with st.spinner("Transcription en cours..."):
-                dream_text = transcribe_audio(audio_file)
-            st.write("**Transcription :**", dream_text)
+    st.session_state.messages.append({
+        "role": "user",
+        "content": dream_text
+    })
 
-    if st.button("Analyser mon rêve") and dream_text:
+    with st.chat_message("assistant"):
         with st.spinner("Analyse en cours..."):
             summary = get_dream_summary(dream_text)
             interpretation = get_dream_interpretation(dream_text)
             image_prompt = get_image_prompt(dream_text)
             image_bytes = generate_dream_image(image_prompt)
 
-        st.subheader("Résumé")
+        st.markdown("**Résumé**")
         st.write(summary)
-
-        st.subheader("Interprétation")
+        st.markdown("**Interprétation**")
         st.write(interpretation)
-
-        st.subheader("Illustration du rêve")
         if image_bytes:
+            st.markdown("**Illustration**")
             st.image(image_bytes)
         else:
             st.warning("L'image n'a pas pu être générée.")
 
-        dream_data = {
-            "dream_text": dream_text,
-            "summary": summary,
-            "interpretation": interpretation,
-            "image_prompt": image_prompt,
-        }
-        save_dream(dream_data)
-        st.success("Rêve sauvegardé dans ton journal !")
+    assistant_index = len(st.session_state.messages)
+    st.session_state.messages.append({
+        "role": "assistant",
+        "summary": summary,
+        "interpretation": interpretation,
+    })
 
-    st.divider()
-    st.subheader("Journal des rêves")
+    if image_bytes:
+        st.session_state.images[assistant_index] = image_bytes
 
-    dreams = load_dreams()
+    save_dream({
+        "dream_text": dream_text,
+        "summary": summary,
+        "interpretation": interpretation,
+        "image_prompt": image_prompt,
+    })
 
-    if not dreams:
-        st.write("Aucun rêve enregistré pour l'instant.")
-    else:
-        for dream in reversed(dreams):
-            with st.expander(f"Rêve du {dream['date']}"):
-                st.write("**Texte original :**", dream["dream_text"])
-                st.write("**Résumé :**", dream["summary"])
-                st.write("**Interprétation :**", dream["interpretation"])
+
+def main():
+    st.title("Interprète de Rêves")
+
+    initialize_session()
+
+    with st.sidebar:
+        st.header("Enregistrement audio")
+        audio_file = st.audio_input("Enregistre ton rêve")
+        if audio_file:
+            with st.spinner("Transcription en cours..."):
+                transcribed_text = transcribe_audio(audio_file)
+            st.success("Transcription terminée !")
+            st.write(transcribed_text)
+            if st.button("Analyser ce rêve"):
+                analyze_dream(transcribed_text)
+                st.rerun()
+
+    display_history()
+
+    dream_text = st.chat_input("Décris ton rêve...")
+    if dream_text:
+        analyze_dream(dream_text)
 
 
 if __name__ == "__main__":
