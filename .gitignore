@@ -136,6 +136,9 @@ celerybeat.pid
 
 # Environments
 .env
+
+# Dream journal data
+dreams.json
 .envrc
 .venv
 env/
