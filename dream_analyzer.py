@@ -8,6 +8,7 @@ client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 MODEL = "llama-3.3-70b-versatile"
 
 
+# Résumé structuré du rêve
 def get_dream_summary(dream_text):
     response = client.chat.completions.create(
         model=MODEL,
@@ -29,6 +30,7 @@ def get_dream_summary(dream_text):
     return response.choices[0].message.content
 
 
+# Interprétation symbolique du rêve
 def get_dream_interpretation(dream_text):
     response = client.chat.completions.create(
         model=MODEL,
@@ -50,6 +52,7 @@ def get_dream_interpretation(dream_text):
     return response.choices[0].message.content
 
 
+# Prompt visuel pour l'image
 def get_image_prompt(dream_text):
     response = client.chat.completions.create(
         model=MODEL,

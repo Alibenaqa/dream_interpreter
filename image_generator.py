@@ -10,6 +10,7 @@ HF_API_URL = (
 )
 
 
+# Génère une image depuis Hugging Face
 def generate_dream_image(image_prompt):
     headers = {
         "Authorization": f"Bearer {os.getenv('HF_TOKEN')}"
