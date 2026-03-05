@@ -1,0 +1,334 @@
+<html><head><meta charset="utf-8"><style>body{font-family:Arial;margin:40px;line-height:1.6;}code{background:#f4f4f4;padding:2px 6px;}pre{background:#f4f4f4;padding:15px;}</style></head><body><h1>Documentation complète — Interprète de Rêves</h1>
+<hr />
+<h2>Introduction</h2>
+<p>Ce projet est un interprète de rêves intelligent. L'utilisateur décrit son rêve (en texte ou en audio), et l'application génère un résumé, une interprétation symbolique et une image illustrant le rêve.</p>
+<p><strong>Technologies utilisées :</strong>
+- <strong>Groq</strong> : héberge le modèle de langage (llama-3.3-70b-versatile) et le modèle de transcription audio (Whisper large-v3, créé par OpenAI)
+- <strong>Hugging Face</strong> : héberge le modèle de génération d'images (Stable Diffusion XL, créé par Stability AI)
+- <strong>Streamlit</strong> : crée l'interface web
+- <strong>python-dotenv</strong> : gère les clés API secrètes
+- <strong>requests</strong> : envoie des requêtes HTTP vers Hugging Face</p>
+<hr />
+<h2>Fichier 1 : requirements.txt</h2>
+<pre><code>groq
+streamlit
+python-dotenv
+requests
+</code></pre>
+<p>Ce fichier liste toutes les bibliothèques Python dont le projet a besoin. La commande <code>pip install -r requirements.txt</code> les installe toutes en une seule fois.</p>
+<ul>
+<li><code>groq</code> : la bibliothèque officielle pour parler à l'API Groq (LLM + Whisper)</li>
+<li><code>streamlit</code> : crée l'interface web sans avoir besoin de HTML/CSS/JS</li>
+<li><code>python-dotenv</code> : lit le fichier .env pour charger les clés API</li>
+<li><code>requests</code> : envoie des requêtes HTTP (utilisé pour Hugging Face)</li>
+</ul>
+<hr />
+<h2>Fichier 2 : .env</h2>
+<pre><code>GROQ_API_KEY=ta_cle_groq
+HF_TOKEN=ton_token_hugging_face
+</code></pre>
+<p>Ce fichier contient les clés API secrètes. Il n'est jamais envoyé sur GitHub grâce au .gitignore. Chaque service (Groq, Hugging Face) donne une clé unique pour identifier qui fait les appels.</p>
+<hr />
+<h2>Fichier 3 : dream_analyzer.py</h2>
+<p>Ce fichier contient toutes les fonctions qui utilisent le modèle de langage Groq pour analyser les rêves.</p>
+<pre><code class="language-python">import os
+</code></pre>
+<p>Importe le module <code>os</code> qui permet de lire les variables d'environnement (les clés dans le fichier .env).</p>
+<pre><code class="language-python">from groq import Groq
+</code></pre>
+<p>Importe la classe <code>Groq</code> depuis la bibliothèque groq. C'est ce qui nous permet de parler à l'API Groq.</p>
+<pre><code class="language-python">from dotenv import load_dotenv
+</code></pre>
+<p>Importe la fonction <code>load_dotenv</code> qui lit le fichier .env et charge les variables dedans.</p>
+<pre><code class="language-python">load_dotenv()
+</code></pre>
+<p>Exécute la lecture du fichier .env. Après cette ligne, <code>os.getenv("GROQ_API_KEY")</code> fonctionne.</p>
+<pre><code class="language-python">client = Groq(api_key=os.getenv(&quot;GROQ_API_KEY&quot;))
+</code></pre>
+<p>Crée une connexion avec l'API Groq en utilisant notre clé secrète. <code>client</code> est l'objet qu'on utilisera pour faire tous les appels.</p>
+<pre><code class="language-python">MODEL = &quot;llama-3.3-70b-versatile&quot;
+</code></pre>
+<p>Stocke le nom du modèle dans une constante (en majuscules par convention PEP 8). C'est le modèle de langage qu'on utilise — 70 milliards de paramètres, très performant.</p>
+<hr />
+<h3>Fonction get_dream_summary(dream_text)</h3>
+<pre><code class="language-python">def get_dream_summary(dream_text):
+</code></pre>
+<p>Définit une fonction qui reçoit le texte du rêve en paramètre.</p>
+<pre><code class="language-python">    response = client.chat.completions.create(
+        model=MODEL,
+</code></pre>
+<p>Fait un appel à l'API Groq. On utilise <code>client.chat.completions.create</code> — c'est le même format que l'API OpenAI (Groq est compatible).</p>
+<pre><code class="language-python">        messages=[
+            {&quot;role&quot;: &quot;system&quot;, &quot;content&quot;: &quot;Tu es un assistant spécialisé dans l'analyse de rêves. Produis un résumé structuré du rêve en identifiant : les personnages, les lieux, les objets et les émotions.&quot;},
+            {&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: dream_text}
+        ]
+</code></pre>
+<p>On envoie deux messages : le message <code>system</code> donne les instructions au modèle (son rôle), le message <code>user</code> contient le rêve de l'utilisateur. C'est comme avoir une conversation avec le modèle.</p>
+<pre><code class="language-python">    return response.choices[0].message.content
+</code></pre>
+<p>L'API renvoie un objet complexe. On accède à la réponse via <code>.choices[0].message.content</code> — c'est le texte généré par le modèle.</p>
+<hr />
+<h3>Fonction get_dream_interpretation(dream_text)</h3>
+<p>Même structure que <code>get_dream_summary</code> mais avec un prompt système différent : le modèle joue le rôle d'un interprète expert en psychologie symbolique et génère une interprétation narrative profonde.</p>
+<hr />
+<h3>Fonction get_image_prompt(dream_text)</h3>
+<pre><code class="language-python">{&quot;role&quot;: &quot;system&quot;, &quot;content&quot;: &quot;Generate ONLY an image generation prompt in English. No explanation, no sentence, just descriptive words. Maximum 15 words.&quot;}
+</code></pre>
+<p>On demande au modèle de générer UNIQUEMENT un prompt en anglais, court (max 15 mots), sans phrases. C'est parce que les modèles de génération d'images fonctionnent mieux avec des mots-clés en anglais qu'avec des phrases complètes en français.</p>
+<hr />
+<h2>Fichier 4 : speech_to_text.py</h2>
+<p>Ce fichier contient la fonction de transcription audio — transformer un enregistrement vocal en texte.</p>
+<pre><code class="language-python">import os
+from groq import Groq
+from dotenv import load_dotenv
+
+load_dotenv()
+client = Groq(api_key=os.getenv(&quot;GROQ_API_KEY&quot;))
+</code></pre>
+<p>Même initialisation que dans dream_analyzer.py — on charge les variables d'environnement et on crée le client Groq.</p>
+<hr />
+<h3>Fonction transcribe_audio(audio_file)</h3>
+<pre><code class="language-python">def transcribe_audio(audio_file):
+</code></pre>
+<p>Reçoit un fichier audio (capturé par Streamlit via le microphone).</p>
+<pre><code class="language-python">    audio_bytes = audio_file.read()
+</code></pre>
+<p>Lit le contenu binaire du fichier audio. <code>.read()</code> transforme le fichier en une suite d'octets (bytes).</p>
+<pre><code class="language-python">    transcription = client.audio.transcriptions.create(
+        file=(&quot;audio.webm&quot;, audio_bytes),
+</code></pre>
+<p>Envoie le fichier audio à l'API Groq. On précise le nom <code>"audio.webm"</code> pour que Groq sache quel format il reçoit. Groq fait tourner <strong>Whisper large-v3</strong> (créé par OpenAI) sur ses serveurs pour faire la transcription.</p>
+<pre><code class="language-python">        model=&quot;whisper-large-v3&quot;,
+</code></pre>
+<p>Spécifie le modèle de transcription. Whisper large-v3 supporte plus de 50 langues dont le français.</p>
+<pre><code class="language-python">        language=&quot;fr&quot;,
+</code></pre>
+<p>Précise explicitement que la langue est le français. Cela améliore la précision de la transcription.</p>
+<pre><code class="language-python">    return transcription.text
+</code></pre>
+<p>Retourne le texte transcrit.</p>
+<hr />
+<h2>Fichier 5 : image_generator.py</h2>
+<p>Ce fichier contient la fonction qui génère une image à partir d'un texte (text-to-image).</p>
+<pre><code class="language-python">import os
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+</code></pre>
+<p>Imports standards. On utilise <code>requests</code> ici (pas la bibliothèque Groq) car Hugging Face n'a pas de bibliothèque Python dédiée — on fait des appels HTTP directs.</p>
+<pre><code class="language-python">HF_API_URL = (
+    &quot;https://router.huggingface.co/hf-inference/models/&quot;
+    &quot;stabilityai/stable-diffusion-xl-base-1.0&quot;
+)
+</code></pre>
+<p>L'URL des serveurs Hugging Face. Le modèle est <code>stable-diffusion-xl-base-1.0</code> créé par Stability AI. HF l'héberge sur ses serveurs. L'URL est coupée en deux lignes pour respecter la limite de 79 caractères (règle PEP 8).</p>
+<hr />
+<h3>Fonction generate_dream_image(image_prompt)</h3>
+<pre><code class="language-python">def generate_dream_image(image_prompt):
+</code></pre>
+<p>Reçoit le prompt texte (les mots-clés générés par <code>get_image_prompt</code>).</p>
+<pre><code class="language-python">    headers = {&quot;Authorization&quot;: f&quot;Bearer {os.getenv('HF_TOKEN')}&quot;}
+</code></pre>
+<p>Prépare l'en-tête d'authentification. <code>Bearer</code> c'est un standard HTTP pour transmettre un token d'accès. Hugging Face vérifie ce token pour autoriser l'appel.</p>
+<pre><code class="language-python">    clean_prompt = image_prompt.strip().rstrip(&quot;.,!?&quot;)[:200]
+</code></pre>
+<p>Nettoie le prompt en trois étapes :
+- <code>.strip()</code> : enlève les espaces au début et à la fin
+- <code>.rstrip(".,!?")</code> : enlève la ponctuation à la fin
+- <code>[:200]</code> : coupe à 200 caractères maximum</p>
+<p>C'est nécessaire car Groq renvoyait parfois des prompts trop longs avec de la ponctuation.</p>
+<pre><code class="language-python">    response = requests.post(
+        HF_API_URL,
+        headers=headers,
+        json={&quot;inputs&quot;: clean_prompt},
+        timeout=60
+    )
+</code></pre>
+<p>Envoie une requête POST à Hugging Face. <code>json={"inputs": clean_prompt}</code> envoie le prompt au format JSON. <code>timeout=60</code> signifie qu'on attend maximum 60 secondes (la génération d'image prend du temps).</p>
+<pre><code class="language-python">    if response.status_code == 200:
+        return response.content
+    return None
+</code></pre>
+<p>Si le serveur répond avec le code 200 (succès), on retourne les bytes de l'image directement. Si ça a raté, on retourne <code>None</code> et l'app affichera un avertissement.</p>
+<hr />
+<h2>Fichier 6 : dream_journal.py</h2>
+<p>Ce fichier gère la sauvegarde et le chargement des rêves dans un fichier JSON local.</p>
+<pre><code class="language-python">import json
+</code></pre>
+<p>Module Python intégré pour lire et écrire du JSON (JavaScript Object Notation) — un format texte pour stocker des données structurées.</p>
+<pre><code class="language-python">import os
+</code></pre>
+<p>Pour vérifier si le fichier JSON existe.</p>
+<pre><code class="language-python">from datetime import datetime
+</code></pre>
+<p>Pour ajouter la date et l'heure à chaque rêve sauvegardé.</p>
+<pre><code class="language-python">JOURNAL_FILE = &quot;dreams.json&quot;
+</code></pre>
+<p>Le nom du fichier de sauvegarde. Constante en majuscules (convention PEP 8).</p>
+<hr />
+<h3>Fonction save_dream(dream_data)</h3>
+<pre><code class="language-python">def save_dream(dream_data):
+</code></pre>
+<p>Reçoit un dictionnaire avec le texte du rêve, le résumé, l'interprétation et le prompt image.</p>
+<pre><code class="language-python">    dreams = load_dreams()
+</code></pre>
+<p>Charge d'abord tous les rêves existants pour ne pas les écraser.</p>
+<pre><code class="language-python">    dream_data[&quot;date&quot;] = datetime.now().strftime(&quot;%Y-%m-%d %H:%M&quot;)
+</code></pre>
+<p>Ajoute la date et l'heure actuelles au format "2024-03-15 14:30". <code>strftime</code> formate la date selon le pattern donné.</p>
+<pre><code class="language-python">    dreams.append(dream_data)
+</code></pre>
+<p>Ajoute le nouveau rêve à la liste existante.</p>
+<pre><code class="language-python">    with open(JOURNAL_FILE, &quot;w&quot;, encoding=&quot;utf-8&quot;) as file:
+        json.dump(dreams, file, ensure_ascii=False, indent=2)
+</code></pre>
+<p>Ouvre le fichier en mode écriture ("w") et écrit toute la liste en JSON.
+- <code>ensure_ascii=False</code> : permet les caractères spéciaux (é, à, ê...)
+- <code>indent=2</code> : indente le JSON pour le rendre lisible
+- <code>with</code> : ferme automatiquement le fichier après l'écriture</p>
+<hr />
+<h3>Fonction load_dreams()</h3>
+<pre><code class="language-python">def load_dreams():
+    if not os.path.exists(JOURNAL_FILE):
+        return []
+</code></pre>
+<p>Si le fichier n'existe pas encore (premier lancement), retourne une liste vide.</p>
+<pre><code class="language-python">    with open(JOURNAL_FILE, &quot;r&quot;, encoding=&quot;utf-8&quot;) as file:
+        return json.load(file)
+</code></pre>
+<p>Ouvre le fichier en lecture ("r") et le convertit de JSON en liste Python.</p>
+<hr />
+<h2>Fichier 7 : app.py</h2>
+<p>C'est le fichier principal — il crée l'interface web et orchestre tous les autres fichiers.</p>
+<pre><code class="language-python">import streamlit as st
+</code></pre>
+<p>Importe Streamlit. Le <code>as st</code> est un alias — raccourci pour ne pas écrire <code>streamlit.</code> à chaque fois.</p>
+<pre><code class="language-python">from dream_analyzer import (get_dream_summary, get_dream_interpretation, get_image_prompt)
+from speech_to_text import transcribe_audio
+from image_generator import generate_dream_image
+from dream_journal import save_dream
+</code></pre>
+<p>Importe toutes les fonctions des autres fichiers. C'est le principe de <strong>modularité</strong> : chaque fichier a une responsabilité unique.</p>
+<hr />
+<h3>Fonction initialize_session()</h3>
+<pre><code class="language-python">def initialize_session():
+    if &quot;messages&quot; not in st.session_state:
+        st.session_state.messages = []
+    if &quot;images&quot; not in st.session_state:
+        st.session_state.images = {}
+    if &quot;audio_dream&quot; not in st.session_state:
+        st.session_state.audio_dream = None
+</code></pre>
+<p>Streamlit recharge le script Python entièrement à chaque interaction. <code>st.session_state</code> est la mémoire qui survit entre ces rechargements.</p>
+<ul>
+<li><code>messages</code> : liste de tous les messages de la conversation</li>
+<li><code>images</code> : dictionnaire qui associe chaque message assistant à son image (l'index du message est la clé)</li>
+<li><code>audio_dream</code> : stocke temporairement le texte transcrit depuis le micro</li>
+</ul>
+<p>Le <code>if ... not in</code> évite d'écraser ces variables à chaque rechargement — on ne les crée qu'une seule fois.</p>
+<hr />
+<h3>Fonction display_history()</h3>
+<pre><code class="language-python">def display_history():
+    for i, message in enumerate(st.session_state.messages):
+</code></pre>
+<p><code>enumerate</code> donne en même temps l'index <code>i</code> et le message. On a besoin de <code>i</code> pour retrouver l'image associée.</p>
+<pre><code class="language-python">        with st.chat_message(message[&quot;role&quot;]):
+</code></pre>
+<p>Crée une bulle de chat. Si <code>role</code> est "user" → bulle à droite. Si "assistant" → bulle à gauche avec l'icône robot.</p>
+<pre><code class="language-python">            if message[&quot;role&quot;] == &quot;user&quot;:
+                st.write(message[&quot;content&quot;])
+            else:
+                st.markdown(&quot;**Résumé**&quot;)
+                st.write(message[&quot;summary&quot;])
+                st.markdown(&quot;**Interprétation**&quot;)
+                st.write(message[&quot;interpretation&quot;])
+                if i in st.session_state.images:
+                    st.markdown(&quot;**Illustration**&quot;)
+                    st.image(st.session_state.images[i])
+</code></pre>
+<p>Affiche le contenu différemment selon qui parle. Pour l'assistant, on affiche résumé, interprétation et image si elle existe.</p>
+<hr />
+<h3>Fonction analyze_dream(dream_text)</h3>
+<p>C'est la fonction principale — elle reçoit le texte du rêve et orchestre tout.</p>
+<pre><code class="language-python">    with st.chat_message(&quot;user&quot;):
+        st.write(dream_text)
+    st.session_state.messages.append({&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: dream_text})
+</code></pre>
+<p>Affiche le message de l'utilisateur dans le chat et l'ajoute à l'historique.</p>
+<pre><code class="language-python">    with st.chat_message(&quot;assistant&quot;):
+        with st.spinner(&quot;Analyse en cours...&quot;):
+            summary = get_dream_summary(dream_text)
+            interpretation = get_dream_interpretation(dream_text)
+            image_prompt = get_image_prompt(dream_text)
+            image_bytes = generate_dream_image(image_prompt)
+</code></pre>
+<p><code>st.spinner</code> affiche une roue de chargement pendant les appels API. Les 4 fonctions s'exécutent dans l'ordre — chacune appelle son API respective.</p>
+<pre><code class="language-python">        st.markdown(&quot;**Résumé**&quot;)
+        st.write(summary)
+        st.markdown(&quot;**Interprétation**&quot;)
+        st.write(interpretation)
+        if image_bytes:
+            st.image(image_bytes)
+        else:
+            st.warning(&quot;L'image n'a pas pu être générée.&quot;)
+</code></pre>
+<p>Affiche les résultats. Si l'image n'a pas pu être générée (<code>None</code>), on affiche un avertissement.</p>
+<pre><code class="language-python">    assistant_index = len(st.session_state.messages)
+    st.session_state.messages.append({&quot;role&quot;: &quot;assistant&quot;, &quot;summary&quot;: summary, &quot;interpretation&quot;: interpretation})
+    if image_bytes:
+        st.session_state.images[assistant_index] = image_bytes
+</code></pre>
+<p>On sauvegarde l'index avant d'ajouter le message, puis on stocke l'image avec cet index comme clé. Cela permet à <code>display_history()</code> de retrouver l'image au prochain rechargement.</p>
+<pre><code class="language-python">    save_dream({&quot;dream_text&quot;: dream_text, &quot;summary&quot;: summary, &quot;interpretation&quot;: interpretation, &quot;image_prompt&quot;: image_prompt})
+</code></pre>
+<p>Sauvegarde le rêve dans le fichier JSON local.</p>
+<hr />
+<h3>Fonction main()</h3>
+<pre><code class="language-python">def main():
+    st.title(&quot;Interprète de Rêves&quot;)
+    initialize_session()
+</code></pre>
+<p>Affiche le titre de la page et initialise la mémoire de session.</p>
+<pre><code class="language-python">    with st.sidebar:
+        st.header(&quot;Enregistrement audio&quot;)
+        audio_file = st.audio_input(&quot;Enregistre ton rêve&quot;)
+        if audio_file:
+            if st.button(&quot;Transcrire et analyser&quot;):
+                with st.spinner(&quot;Transcription en cours...&quot;):
+                    transcribed = transcribe_audio(audio_file)
+                cleaned = transcribed.strip()
+                if len(cleaned) &gt; 3:
+                    st.session_state.audio_dream = cleaned
+                    st.success(f&quot;Transcrit : {cleaned}&quot;)
+                else:
+                    st.error(&quot;Rien n'a été capté. Réessaie.&quot;)
+</code></pre>
+<p>La sidebar (colonne gauche) contient le système audio. <code>st.audio_input</code> est le widget microphone. Si l'audio est là et que le bouton est cliqué, on transcrit. <code>len(cleaned) &gt; 3</code> évite le bug du silence — Whisper peut halluciner du texte sur un enregistrement silencieux.</p>
+<pre><code class="language-python">    display_history()
+</code></pre>
+<p>Affiche tous les messages précédents de la session.</p>
+<pre><code class="language-python">    if st.session_state.audio_dream:
+        dream_to_analyze = st.session_state.audio_dream
+        st.session_state.audio_dream = None
+        analyze_dream(dream_to_analyze)
+</code></pre>
+<p>Si un rêve audio a été transcrit, on l'analyse puis on remet <code>audio_dream</code> à <code>None</code> pour ne pas le ré-analyser au prochain rechargement de Streamlit.</p>
+<pre><code class="language-python">    dream_text = st.chat_input(&quot;Décris ton rêve...&quot;)
+    if dream_text:
+        analyze_dream(dream_text)
+</code></pre>
+<p>La barre de texte en bas de l'écran. <code>st.chat_input</code> attend que l'utilisateur appuie sur Entrée pour envoyer.</p>
+<pre><code class="language-python">if __name__ == &quot;__main__&quot;:
+    main()
+</code></pre>
+<p>Standard Python — si on exécute ce fichier directement, on appelle <code>main()</code>. Streamlit vérifie cette condition et l'exécute automatiquement.</p>
+<hr />
+<h2>Architecture globale</h2>
+<pre><code>app.py  (chef d'orchestre)
+  ├── dream_analyzer.py  →  API Groq (LLM llama)
+  ├── speech_to_text.py  →  API Groq (Whisper)
+  ├── image_generator.py →  API Hugging Face (Stable Diffusion)
+  └── dream_journal.py   →  Fichier local dreams.json
+</code></pre>
+<p>Chaque fichier a une seule responsabilité — c'est le principe <strong>DRY</strong> (Don't Repeat Yourself) et <strong>KISS</strong> (Keep It Simple, Stupid) appris en cours.</p></body></html>

@@ -148,3 +148,8 @@ lors de l'appel à l'API image.
 **Solution** : Ajout de la contrainte "Maximum 15 words" et
 "just descriptive words" dans le system prompt, et troncature
 à 200 caractères dans le code.
+
+### 4. Problème de transcription audio
+Le navigateur Brave bloque l'accès au microphone au niveau système,
+même lorsque les permissions sont accordées dans les paramètres.
+Le code de transcription est fonctionnel et a été validé.
